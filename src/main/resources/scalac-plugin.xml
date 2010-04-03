@@ -1,0 +1,4 @@
+<plugin>
+  <name>templatesyntaxanalyzer</name>
+  <classname>jto.scala.compiler.plugins.TemplateSyntaxAnalyzer</classname>
+</plugin>
