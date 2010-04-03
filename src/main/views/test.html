@@ -1,4 +1,3 @@
-{% import jto.scala.template.exemple._ %}
 #{extends: jto.scala.template.exemple.ImplicitConversions }
 #{params: u: User}
 <!DOCTYPE html>
@@ -7,13 +6,11 @@
 		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
 		<title>Test template scala</title>
 	</head>
-	
-	<body> 
+	{% val x = 4 %}
+	<body>
 		{{
 			/* THIS CODE BLOCK IS A CLOSURE */
-			import jto.scala.template.exemple._
-			val toto = new User("toto", 1)
-			"name: " + toto.login + ", id: " + toto.id;
+			"toto" + x;
 		}}
 		<p>consectetur adipisicing elit</p>
 	</body>

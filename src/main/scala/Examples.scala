@@ -1,4 +1,4 @@
-package jto.scala.template.exemple
+package jto.scala.template.example
 
 trait ImplicitConversions{
   implicit def userToTemplate(u :User): UserTag = new UserTag(u)

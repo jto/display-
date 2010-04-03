@@ -42,7 +42,7 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
 
       def apply(unit: CompilationUnit) {
         unit.body = loadTemplates
-        //TemplateSyntaxAnalyzer.this.global.treeBrowsers.create().browse(unit.body)
+        //TemplateSyntaxAnalyzer.this.global.treeBrowsers.create().browse(unit.body) 
       }
       
       // ==============================
@@ -77,14 +77,22 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
       }
             
       //Create "render" function definition 
-      def buildRenderDef(body: Tree): Tree = {
+      import scala.tools.nsc.symtab.Flags
+      def buildRenderDef(body: List[Tree]): Tree = {
         val newmods = NoMods
         val name = newTermName("render")
         val tparams = List[TypeDef]()                                   //Template (generics) parameters ex: render[T](toto: T) = ...
         val vparamss = List(List[ValDef]())                             //method parameters TODO: set real parameters
         val restype = TypeTree()                                        //TypeTree, function's return type, will be infered
 
-        val rhs = atPos(NoPosition){ body }    //Method BODY
+        //TODO: ajouter le ValDef de out
+        //Declare an empty mutable String named "out"
+        val outDef = ValDef(Modifiers(Flags.MUTABLE), newTermName("out"), TypeTree(), Literal(""))
+        val outReturn = Ident("out")
+        val completeBody: List[Tree] = outDef :: body
+        val b = Block(completeBody,  outReturn)
+        
+        val rhs = atPos(NoPosition){ b }    //Method BODY
         DefDef(newmods, name, tparams, vparamss, restype, rhs)
       }
       
@@ -114,21 +122,21 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
       * Convert Template AST To Scala AST
       */
       import scala.util.parsing.input.OffsetPosition
-      def template2Scala(sourcefile: BatchSourceFile, t: List[Expression]): Tree = {
-        val node = t.head match {
-          case b @ ScalaValueBlock(e) => parser(sourcefile, b).block
-          
-          //TODO
-          case ScalaScriptBlock(e) => Literal("/* " + e + " */")
-          case StaticValueBlock(e) => Literal(e)
-          //TODO
-          case ScalaExtends(e) => Literal("/*EXTENDS: " + e + " */")
-          case _ => throw new Exception("WTF am I doing here ?")
+      def template2Scala(sourcefile: BatchSourceFile, t: List[Expression]): List[Tree] = {
+        t map {
+          _ match {
+              case b @ ScalaValueBlock(e) =>assign(parser(sourcefile, b).block)
+              //TODO
+              case ScalaScriptBlock(e) => assign(Literal("/* " + e + " */"))
+              case StaticValueBlock(e) => assign(Literal(e))
+              //TODO
+              case ScalaExtends(e) => assign(Literal("/*EXTENDS: " + e + " */"))
+              case _ => throw new Exception("WTF am I doing here ?")
+            } 
         }
-                
-        if(t.tail isEmpty) node
-        else Apply( Select(node, newTermName("$plus")), List(template2Scala(sourcefile, t.tail)) )
       }
+      
+      def assign(node: Tree) = Assign(Ident("out"), Apply( Select(Ident("out"), newTermName("$plus")), List(node) ))
       
       /**
       * Return content parser

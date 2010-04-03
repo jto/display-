@@ -19,7 +19,7 @@ define 'TemplateSyntaxAnalyzer' do
   end
   
   task :buildTemplate => :package do
-    system 'scalac Test.scala -Xplugin:target/TemplateSyntaxAnalyzer-0.1.jar'
+    system 'scalac -cp target/classes Test.scala -Xplugin:target/TemplateSyntaxAnalyzer-0.1.jar'
   end
   
   task :scalap => :compile do
