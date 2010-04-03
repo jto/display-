@@ -115,23 +115,8 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
       import scala.util.parsing.input.OffsetPosition
       def template2Scala(sourcefile: BatchSourceFile, t: List[Expression]): Tree = {
         val node = t.head match {
-          case b @ ScalaValueBlock(e) => {
-            val p: scala.util.parsing.input.Position = b.pos
-            //TODO: get scala block start separator length
-            val start = p.asInstanceOf[OffsetPosition].offset + 2
-            val end = start + e.length()
-
-            /**
-            * SourceFileFragment that match Position in scala block to Position in real file
-            */
-            import scala.tools.nsc.util.FakePos
-            class TemplateFileFragment(sf: BatchSourceFile, start: Int, end: Int) extends SourceFileFragment(sf, start, end){
-              override def positionInUltimateSource(position: Position) = new scala.tools.nsc.util.OffsetPosition(sourcefile, position.point + start)
-            }            
-            
-            val fragment = new TemplateFileFragment(sourcefile, start, end)
-            new UnitParser(new CompilationUnit(fragment)).block()
-          }
+          case b @ ScalaValueBlock(e) => parser(sourcefile, b, e).block()
+          
           //TODO
           case ScalaScriptBlock(e) => Literal("/* " + e + " */")
           case StaticValueBlock(e) => Literal(e)
@@ -139,9 +124,28 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
           case ScalaExtends(e) => Literal("/*EXTENDS: " + e + " */")
           case _ => throw new Exception("WTF am I doing here ?")
         }
-        
+                
         if(t.tail isEmpty) node
         else Apply( Select(node, newTermName("$plus")), List(template2Scala(sourcefile, t.tail)) )
+      }
+      
+      /**
+      * Return content parser
+      */
+      def parser(sourcefile: BatchSourceFile, b: Expression, content: String): Parser = {
+        val p: scala.util.parsing.input.Position = b.pos
+        //TODO: get scala block start separator length
+        val start = p.asInstanceOf[OffsetPosition].offset + 2
+        val end = start + content.length()
+        /**
+        * SourceFileFragment that match Position in scala block to Position in real file
+        */
+        import scala.tools.nsc.util.FakePos
+        class TemplateFileFragment(sf: BatchSourceFile, start: Int, end: Int) extends SourceFileFragment(sf, start, end){
+          override def positionInUltimateSource(position: Position) = new scala.tools.nsc.util.OffsetPosition(sourcefile, position.point + start)
+        }            
+        val fragment = new TemplateFileFragment(sourcefile, start, end)
+        new UnitParser(new CompilationUnit(fragment))
       }
       
     }
