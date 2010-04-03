@@ -6,6 +6,8 @@ import scala.tools.nsc.util.{Position, NoPosition}
 import scala.tools.nsc.ast.TreeGen
 import scala.tools.nsc.ast.parser._
 
+import jto.scala.template.ast._
+
 import java.io._
 
 /**
@@ -111,11 +113,10 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
       /**
       * Convert Template AST To Scala AST
       */
-      import scala.tools.nsc.util.SourceFileFragment
       import scala.util.parsing.input.OffsetPosition
       def template2Scala(sourcefile: BatchSourceFile, t: List[Expression]): Tree = {
         val node = t.head match {
-          case b @ ScalaValueBlock(e) => parser(sourcefile, b, e).block()
+          case b @ ScalaValueBlock(e) => parser(sourcefile, b).block
           
           //TODO
           case ScalaScriptBlock(e) => Literal("/* " + e + " */")
@@ -132,15 +133,15 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
       /**
       * Return content parser
       */
-      def parser(sourcefile: BatchSourceFile, b: Expression, content: String): Parser = {
+      def parser(sourcefile: BatchSourceFile, b: Expression): Parser = {
         val p: scala.util.parsing.input.Position = b.pos
         //TODO: get scala block start separator length
         val start = p.asInstanceOf[OffsetPosition].offset + 2
-        val end = start + content.length()
+        val end = start + b.expr.length
         /**
         * SourceFileFragment that match Position in scala block to Position in real file
         */
-        import scala.tools.nsc.util.FakePos
+        import scala.tools.nsc.util.SourceFileFragment
         class TemplateFileFragment(sf: BatchSourceFile, start: Int, end: Int) extends SourceFileFragment(sf, start, end){
           override def positionInUltimateSource(position: Position) = new scala.tools.nsc.util.OffsetPosition(sourcefile, position.point + start)
         }            
@@ -150,68 +151,4 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
       
     }
   }
-}
-
-
-/**
-* Template AST classes`
-* TODO: use Real classes from scala compiler, and invoque Scala Parser when Scala blocks are found
-*/
-import scala.util.parsing.input.Positional
-
-sealed abstract class Expression extends Positional
-case class ScalaValueBlock(expr: String) extends Expression
-case class StaticValueBlock(expr: String) extends Expression
-case class ScalaScriptBlock(expr: String) extends Expression
-case class ScalaScriptBlockWithBody(expr: ScalaScriptBlock, body: List[Expression]) extends Expression
-case class ScalaExtends(expr: String) extends Expression
-
-// Cf: http://github.com/paulp/scala-lang-combinators/blob/master/src/MyScanners.scala
-import scala.util.parsing.combinator.{ PackratParsers, ImplicitConversions }
-import scala.util.parsing.syntax._
-import scala.util.parsing.combinator.lexical._
-import scala.util.parsing.input.{ CharArrayReader, CharSequenceReader }
-
-trait CharParsers extends PackratParsers {
-  type Elem = Char
-  type Token = Expression
-}
-
-class TemplateScanner extends CharParsers with ImplicitConversions{
-    
-    val BSTART = "{{"
-    val BEND   = "}}"
-    
-    val SSTART   = "{%"
-    val SEND   = "%}"
-    
-    val EofCh = CharArrayReader.EofCh
-    
-    implicit def string2Parser(s: String): Parser[String] = accept(s.toList) ^^ { _.mkString }
-    
-    lazy val scalaBlock: Parser[Expression]  = BSTART ~> takeUntil(BEND) <~ BEND ^^ (ScalaValueBlock(_))
-    lazy val scriptBlock: Parser[Expression] = SSTART ~> takeUntil(SEND) <~ SEND ^^ (ScalaScriptBlock(_))
-    lazy val staticBlock: Parser[Expression] = takeUntilEnd(BSTART | SSTART | ext) ^^ (StaticValueBlock(_))
-    lazy val ext: Parser[Expression] = "#{extends:" ~> takeUntil("}") <~ "}" ^^ (ScalaExtends(_))
-    
-    def tmpl = positioned(ext | scriptBlock | scalaBlock | staticBlock)+
-     
-    lazy val anyChar: Parser[Char] = chrExcept(EofCh)
-    def chrExcept(cs: Char*): Parser[Char] = elem("chrExcept", ch => (ch != EofCh) && (cs forall (ch !=)))
-    def takeUntil(cond: Parser[Any]): Parser[String] = takeUntil(cond, anyChar)
-    def takeUntilEnd(cond: Parser[Any]): Parser[String] = takeUntilEnd(cond, anyChar)
-    def takeUntil(cond: Parser[Any], p: Parser[Char]): Parser[String] = rep(not(cond) ~> p) ^^ { _.mkString }
-    //"not(EofCh) ~>" avoids infinite loops on rep(takeUntil(...))
-    def takeUntilEnd(cond: Parser[Any], p: Parser[Char]): Parser[String] = (not(EofCh) ~> rep(not(cond) ~> p)) ^^ { _.mkString }
-    
-    def parse(content: String) = phrase(tmpl)(new CharSequenceReader(content))
-}
-
-object TemplateParser{
-    def parse(content: String) = {
-        val s = new TemplateScanner()
-        val res = s.parse(content)
-        println(res)
-        res.getOrElse(List())
-    }
 }

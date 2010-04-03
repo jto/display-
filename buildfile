@@ -18,9 +18,12 @@ define 'TemplateSyntaxAnalyzer' do
     puts "Project: " + project.version
   end
   
-  task :scalap => :package do
-    puts "\n"
+  task :buildTemplate => :package do
     system 'scalac Test.scala -Xplugin:target/TemplateSyntaxAnalyzer-0.1.jar'
+  end
+  
+  task :scalap => :compile do
+    puts "\n"
     system 'scalap -cp . views.pkg2.pkg3.Test'
   end
   
