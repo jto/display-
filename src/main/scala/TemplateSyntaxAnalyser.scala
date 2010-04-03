@@ -122,12 +122,13 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
       * Convert Template AST To Scala AST
       */
       import scala.util.parsing.input.OffsetPosition
+      import scala.collection.mutable.ListBuffer
       def template2Scala(sourcefile: BatchSourceFile, t: List[Expression]): List[Tree] = {
-        t map {
+        t flatMap {
           _ match {
-              case b @ ScalaValueBlock(e) =>assign(parser(sourcefile, b).block)
+              case b @ ScalaValueBlock(e) => assign( parser(sourcefile, b).block )
               //TODO
-              case ScalaScriptBlock(e) => assign(Literal("/* " + e + " */"))
+              case b @ ScalaScriptBlock(e) => parser(sourcefile, b).blockStatSeq(new ListBuffer[Tree])
               case StaticValueBlock(e) => assign(Literal(e))
               //TODO
               case ScalaExtends(e) => assign(Literal("/*EXTENDS: " + e + " */"))
@@ -136,7 +137,7 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
         }
       }
       
-      def assign(node: Tree) = Assign(Ident("out"), Apply( Select(Ident("out"), newTermName("$plus")), List(node) ))
+      def assign(node: Tree) = List( Assign(Ident("out"), Apply( Select(Ident("out"), newTermName("$plus")), List(node) )) )
       
       /**
       * Return content parser
