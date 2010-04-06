@@ -6,8 +6,8 @@ package jto.scala.template.ast
 import scala.util.parsing.input.Positional
 
 sealed abstract class Expression(val expr: String) extends Positional
-case class ScalaValueBlock(override val expr: String) extends Expression(expr)
 case class StaticValueBlock(override val expr: String) extends Expression(expr)
+case class ScalaValueBlock(override val expr: String) extends Expression(expr)
 case class ScalaScriptBlock(override val expr: String) extends Expression(expr)
 case class ScalaExtends(override val expr: String) extends Expression(expr)
 
