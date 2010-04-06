@@ -24,11 +24,11 @@ trait CharParsers extends PackratParsers {
 
 class TemplateScanner extends CharParsers with ImplicitConversions{
     
-    val BSTART = "{{"
-    val BEND   = "}}"
+    val BSTART = "${"
+    val BEND   = "}"
     
-    val SSTART   = "{%"
-    val SEND   = "%}"
+    val SSTART = "%{"
+    val SEND   = "}%"
     
     val EofCh = CharArrayReader.EofCh
     

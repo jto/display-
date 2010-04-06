@@ -1,21 +1,29 @@
-{% import jto.scala.template.example.User %}
+%{ import jto.scala.template.example.User }%
 #{extends: jto.scala.template.Template with jto.scala.template.example.ImplicitConversions}
-#{params: u: User}
+#{params: u: User} //TODO
 <!DOCTYPE html>
 <html>
 	<head>
 		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
 		<title>Test template scala</title>
 	</head>
-	{% 
+	%{
 		val id = 4
 		val u = new User("toto", id)
-		case class Tutu(val v: String)
-		val t = Tutu("blop")
-	%}
+		//=====
+		class Tutu(val v: String)
+		val t = new Tutu("blop")
+		val t2 = null
+	}%
 	<body>
-		{{ u }}
-		<p>consectetur adipisicing elit</p>
-		{{ t }}
+		<p>t = ${t}</p>
+		<div>
+			<h1>t2 or "ARRRG" if null</h1>
+			==> ${t2 ?: "ARRRG"}
+		</div>
+		<div>
+			<h1>u</h1>
+			${u}
+		</div>
 	</body>
 </html>

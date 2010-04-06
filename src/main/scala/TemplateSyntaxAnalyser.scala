@@ -43,7 +43,7 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
 
       def apply(unit: CompilationUnit) {
         unit.body = loadTemplates
-        TemplateSyntaxAnalyzer.this.global.treeBrowsers.create().browse(unit.body) 
+        //TemplateSyntaxAnalyzer.this.global.treeBrowsers.create().browse(unit.body) 
       }
       
       // ==============================

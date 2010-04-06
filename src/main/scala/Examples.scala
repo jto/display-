@@ -9,5 +9,5 @@ class User(val name: String, val id: Long)
 import jto.scala.template.Template
 class UserTag(u: User) extends Template
 {
-  override def render():String = "<p>" + u.name + " (" + u.id + ")</p>"
+  override def render():String = "<p>" + u.name + " ( id=" + u.id + ")</p>"
 }
