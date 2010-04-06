@@ -46,7 +46,7 @@ class TemplateScanner extends CharParsers with ImplicitConversions{
     def takeUntil(cond: Parser[Any]): Parser[String] = takeUntil(cond, anyChar)
     def takeUntilEnd(cond: Parser[Any]): Parser[String] = takeUntilEnd(cond, anyChar)
     def takeUntil(cond: Parser[Any], p: Parser[Char]): Parser[String] = rep(not(cond) ~> p) ^^ { _.mkString }
-    //"not(EofCh) ~>" avoids infinite loops on rep(takeUntil(...))
+    //XXX: "not(EofCh) ~>" avoids infinite loops on rep(takeUntil(...))
     def takeUntilEnd(cond: Parser[Any], p: Parser[Char]): Parser[String] = (not(EofCh) ~> rep(not(cond) ~> p)) ^^ { _.mkString }
     
     def parse(content: String) = phrase(tmpl)(new CharSequenceReader(content))

@@ -5,6 +5,7 @@ import scala.tools.nsc.plugins._
 import scala.tools.nsc.util.{Position, NoPosition}
 import scala.tools.nsc.ast.TreeGen
 import scala.tools.nsc.ast.parser._
+import scala.tools.nsc.symtab.Flags
 
 import jto.scala.template.ast._
 
@@ -63,21 +64,24 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
       
       def buildObject(className: String, parents: (List[Tree], List[List[Tree]]), renderDef: Tree): List[Tree] = {
         //Template(parents: List[Tree], self: ValDef, constrMods: Modifiers, vparamss: List[List[ValDef]], argss: List[List[Tree]], body: List[Tree], superPos: Position)
-        val par = parents._1//List(gen.scalaScalaObjectConstr.asInstanceOf[RefTree]) // SuperClasses  (Cf TreeGen.scala)
+        val par = parents._1 //List(gen.scalaScalaObjectConstr.asInstanceOf[RefTree]) // SuperClasses  (Cf TreeGen.scala)
         val self = emptyValDef                                               // Current class ValDef
         val constrMods = NoMods                                              // Modifiers
         val vparamss =  List(List[ValDef]())                                 // Constructor parameters
-        val argss = parents._2 //List(List[Tree]())                         // Parents class constructors params
+        val argss = parents._2 //List(List[Tree]())                          // Parents class constructors params
         val body = List(renderDef)                                           // List[Tree] of members
         val superPos = NoPosition                                            // Position
 
+        //extends jto.scala.template.Template
+        // :: par
+        
         val t =  atPos(NoPosition) (Template(par, self , constrMods, vparamss, argss, body, superPos))
-        List(ModuleDef(NoMods, newTermName(className), t)) //ModuleDef == object definition
-        //List(ClassDef(NoMods, newTermName(n).toTypeName, List(), t)) // => for Class
+        //List(ModuleDef(NoMods, newTermName(className), t)) //ModuleDef == object definition
+        //TODO: add "case" modifier
+        List(ClassDef(NoMods, newTermName(className).toTypeName, List(), t)) // => for Class
       }
             
       //Create "render" function definition 
-      import scala.tools.nsc.symtab.Flags
       def buildRenderDef(body: List[Tree]): Tree = {
         val newmods = NoMods
         val name = newTermName("render")
@@ -115,7 +119,6 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
         val sourcefile = global.getSourceFile(f.getAbsolutePath).asInstanceOf[BatchSourceFile]
         val content = sourcefile.content mkString
         val (parents,body) = template2Scala(sourcefile, TemplateParser.parse(content))
-        //TODO: add extends
         createBaseTree(buildObject("Test", parents, buildRenderDef(body)))
       }
       
@@ -130,8 +133,7 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
         
         t foreach {
           _ match {
-              case b @ ScalaValueBlock(e) => body += assign( parser(sourcefile, b).block )
-              //TODO
+              case b @ ScalaValueBlock(e) => body += assign( Select(parser(sourcefile, b).block, newTermName("render")) )
               case b @ ScalaScriptBlock(e) => body ++= parser(sourcefile, b).blockStatSeq(new ListBuffer[Tree])
               case StaticValueBlock(e) => body += assign(Literal(e))
               //TODO: handle multiple extends
@@ -149,7 +151,7 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
       */
       def parser(sourcefile: BatchSourceFile, b: Expression): Parser = {
         val p: scala.util.parsing.input.Position = b.pos
-        //TODO: add real start (start tag length)
+        //TODO: add real start (consider start tag length)
         val start = p.asInstanceOf[OffsetPosition].offset
         val end = start + b.expr.length
         /**
@@ -157,7 +159,8 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
         */
         import scala.tools.nsc.util.SourceFileFragment
         class TemplateFileFragment(sf: BatchSourceFile, start: Int, end: Int) extends SourceFileFragment(sf, start, end){
-          override val content = b.expr.toArray
+          //XXX: evil "; expected" workaround
+          override val content = (b.expr + ";").toArray
           override def positionInUltimateSource(position: Position) = new scala.tools.nsc.util.OffsetPosition(sourcefile, position.point + start)
         }            
         val fragment = new TemplateFileFragment(sourcefile, start, end)
