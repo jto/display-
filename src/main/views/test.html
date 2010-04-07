@@ -1,6 +1,9 @@
-%{ import jto.scala.template.example.User }%
+%{ 
+ import jto.scala.template.example.User
+ import jto.scala.template.Template 
+}%
 #{extends: jto.scala.template.Template with jto.scala.template.example.ImplicitConversions}
-#{params: u: User} //TODO
+#{params: u: User}  //TODO
 <!DOCTYPE html>
 <html>
 	<head>
@@ -8,22 +11,32 @@
 		<title>Test template scala</title>
 	</head>
 	%{
-		val id = 4
-		val u = new User("toto", id)
+		val u1 = new User("toto1", 1)
+		val u2 = new User("toto2", 2)
+		val u3 = new User("toto3", 3)
+		val u4 = new User("toto4", 4)
+		val u5 = new User("toto4", 5)
 		//=====
 		class Tutu(val v: String)
-		val t = new Tutu("blop")
+		val t  = new Tutu("blop")
 		val t2 = null
+		//=====
+		val users = List(u1, u2, u3, u4, u5)
 	}%
 	<body>
-		<p>t = ${t}</p>
+		<h1>Default</h1>
+		<p>${t}</p>
 		<div>
-			<h1>t2 or "ARRRG" if null</h1>
-			==> ${t2 ?: "ARRRG"}
+			<h1>Elvis Operator</h1>
+			<p>${t2 ?: "ARRRG"}</p>
 		</div>
 		<div>
-			<h1>u</h1>
-			${u}
+			<h1>UserTag</h1>
+			${u1}
+		</div>
+		<div>
+			<h1>Users</h1>
+			${users}
 		</div>
 	</body>
 </html>
