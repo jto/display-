@@ -15,7 +15,7 @@ import java.io._
 * This plugin allow the Scala compiler to build any file as a scala class
 * making them Templates to produce formatted output 
 */
-class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
+class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin with Parsers{
 
   import global._
 
@@ -38,7 +38,7 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
       
       import symtab.SymbolTable
       object gen  extends TreeGen{ 
-        val global:SymbolTable = Component.global 
+        val global: SymbolTable = Component.global 
       }
 
       def apply(unit: CompilationUnit) {
@@ -73,12 +73,10 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
         val superPos = NoPosition                                            // Position
 
         //extends jto.scala.template.Template
-        // :: par
-        
         val t =  atPos(NoPosition) (Template(par, self , constrMods, vparamss, argss, body, superPos))
         //List(ModuleDef(NoMods, newTermName(className), t)) //ModuleDef == object definition
         //TODO: add "case" modifier
-        List(ClassDef(NoMods, newTermName(className).toTypeName, List(), t)) // => for Class
+        List(ClassDef(NoMods, newTermName(className).toTypeName, List(), t)) // => class definition
       }
             
       //Create "render" function definition 
@@ -90,7 +88,7 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
         val restype = TypeTree()                                        //TypeTree, function's return type, will be infered
 
         //Declare an empty mutable String named "out"
-        //TODO: "out" should be a StringBuffer 
+        //XXX: "out" should be a StringBuffer 
         val outDef = ValDef(Modifiers(Flags.MUTABLE), newTermName("out"), TypeTree(), Literal(""))
         val outReturn = Ident("out")
         val completeBody: List[Tree] = outDef :: body
@@ -117,10 +115,14 @@ class TemplateSyntaxAnalyzer(val global: Global) extends Plugin with Parsers{
       import scala.tools.nsc.util.BatchSourceFile
       def createTemplateFromFile(f: File) = {
         val sourcefile = global.getSourceFile(f.getAbsolutePath).asInstanceOf[BatchSourceFile]
-        val content = sourcefile.content mkString
+        parse(sourcefile)
+      }
+
+			def parse(sourcefile: BatchSourceFile) = {
+				val content = sourcefile.content mkString
         val (parents,body) = template2Scala(sourcefile, TemplateParser.parse(content))
         createBaseTree(buildObject("Test", parents, buildRenderDef(body)))
-      }
+			}
       
       /**
       * Convert Template AST To Scala AST
