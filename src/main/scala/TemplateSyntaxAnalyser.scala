@@ -13,8 +13,7 @@ import java.io._
 
 /**
 * This plugin allow the Scala compiler to build any file as a scala class
-* making them Templates to produce formatted output 
-* TODO: ecrire un compilo special pour les templates
+* making them Templates to produce formatted output
 */
 class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin with Parsers{
 
