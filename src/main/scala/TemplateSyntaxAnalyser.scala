@@ -2,7 +2,7 @@ package jto.scala.compiler.plugins
 
 import scala.tools.nsc._
 import scala.tools.nsc.plugins._
-import scala.tools.nsc.util.{Position, NoPosition}
+import scala.tools.nsc.util.{Position, NoPosition, SourceFile, BatchSourceFile}
 import scala.tools.nsc.ast.TreeGen
 import scala.tools.nsc.ast.parser._
 import scala.tools.nsc.symtab.Flags
@@ -14,6 +14,7 @@ import java.io._
 /**
 * This plugin allow the Scala compiler to build any file as a scala class
 * making them Templates to produce formatted output 
+* TODO: ecrire un compilo special pour les templates
 */
 class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin with Parsers{
 
@@ -42,13 +43,19 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
       }
 
       def apply(unit: CompilationUnit) {
-        unit.body = loadTemplates
+				if(isTemplate(unit.source)){
+					println("IT's a template!")
+        	unit.body = parse(unit.source.asInstanceOf[BatchSourceFile])
+				}
         //TemplateSyntaxAnalyzer.this.global.treeBrowsers.create().browse(unit.body) 
       }
       
       // ==============================
       // REAL CODE STARTS HERE
       // ==============================
+
+			def isTemplate(source: SourceFile) = source.file.name.endsWith(".html.scala")
+
       def createBaseTree(tmplObj: List[Tree]): Tree = {
         val pkg = buildPkg
         atPos(NoPosition) { PackageDef(pkg.asInstanceOf[RefTree], tmplObj) }
@@ -62,12 +69,12 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
         (id /: names){ (i, n) =>  Select(i, newTermName(n)) } //Malbolge was too easy
       }
       
-      def buildObject(className: String, parents: (List[Tree], List[List[Tree]]), renderDef: Tree): List[Tree] = {
+      def buildObject(className: Name, vparamss: List[List[ValDef]],  parents: (List[Tree], List[List[Tree]]), renderDef: Tree): List[Tree] = {
         //Template(parents: List[Tree], self: ValDef, constrMods: Modifiers, vparamss: List[List[ValDef]], argss: List[List[Tree]], body: List[Tree], superPos: Position)
         val par = parents._1 //List(gen.scalaScalaObjectConstr.asInstanceOf[RefTree]) // SuperClasses  (Cf TreeGen.scala)
         val self = emptyValDef                                               // Current class ValDef
         val constrMods = NoMods                                              // Modifiers
-        val vparamss =  List(List[ValDef]())                                 // Constructor parameters
+        //val vparamss =  List(List[ValDef]())                                 // Constructor parameters
         val argss = parents._2 //List(List[Tree]())                          // Parents class constructors params
         val body = List(renderDef)                                           // List[Tree] of members
         val superPos = NoPosition                                            // Position
@@ -76,7 +83,7 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
         val t =  atPos(NoPosition) (Template(par, self , constrMods, vparamss, argss, body, superPos))
         //List(ModuleDef(NoMods, newTermName(className), t)) //ModuleDef == object definition
         //TODO: add "case" modifier
-        List(ClassDef(NoMods, newTermName(className).toTypeName, List(), t)) // => class definition
+        List(ClassDef(NoMods, className, List(), t)) // => class definition
       }
             
       //Create "render" function definition 
@@ -88,7 +95,7 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
         val restype = TypeTree()                                        //TypeTree, function's return type, will be infered
 
         //Declare an empty mutable String named "out"
-        //XXX: "out" should be a StringBuffer 
+        //XXX: "out" should be a StringBuffer ?
         val outDef = ValDef(Modifiers(Flags.MUTABLE), newTermName("out"), TypeTree(), Literal(""))
         val outReturn = Ident("out")
         val completeBody: List[Tree] = outDef :: body
@@ -97,31 +104,14 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
         val rhs = atPos(NoPosition){ b }    //Method BODY
         DefDef(newmods, name, tparams, vparamss, restype, rhs)
       }
-      
-      //XXX: make the compiler load the templates files automatically
-      def loadTemplates() = {
-        val templateFolder = new File("src/main/views")
-        
-        if(!(templateFolder exists) || !(templateFolder isDirectory))
-          throw new FileNotFoundException("views folder not found")
-          
-        val templates = templateFolder.listFiles().filter( f => !(f isHidden) && f.getName().endsWith(".html") )
-        //TODO handle multiple files
-        val ts = templates map createTemplateFromFile
-        ts.head
-      }
-      
-      
-      import scala.tools.nsc.util.BatchSourceFile
-      def createTemplateFromFile(f: File) = {
-        val sourcefile = global.getSourceFile(f.getAbsolutePath).asInstanceOf[BatchSourceFile]
-        parse(sourcefile)
-      }
 
 			def parse(sourcefile: BatchSourceFile) = {
-				val content = sourcefile.content mkString
-        val (parents,body) = template2Scala(sourcefile, TemplateParser.parse(content))
-        createBaseTree(buildObject("Test", parents, buildRenderDef(body)))
+				val ContentExtractor = """(?s)object f\{val l = \"\"\"(.*)\"\"\"\}""".r
+				val content = sourcefile.content.mkString
+				val ContentExtractor(realContent) = content
+							
+        val (name, params, parents,body) = template2Scala(sourcefile, TemplateParser.parse(realContent))
+        createBaseTree(buildObject(name, params, parents, buildRenderDef(body)))
 			}
       
       /**
@@ -130,9 +120,13 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
       import scala.util.parsing.input.OffsetPosition
       import scala.collection.mutable.ListBuffer
       def template2Scala(sourcefile: BatchSourceFile, t: List[Expression]) = {
+				val name = newTermName("Test").toTypeName
         var parents = (List[Tree](), List[List[Tree]]())
+				var params = List[List[ValDef]]()
         val body = new ListBuffer[Tree]
         
+				//paramClauses(owner: Name, contextBounds: List[Tree], ofCaseClass: Boolean)
+
         t foreach {
           _ match {
               case b @ ScalaValueBlock(e) => body += assign( Select(parser(sourcefile, b).block, newTermName("render")) )
@@ -140,10 +134,12 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
               case StaticValueBlock(e) => body += assign(Literal(e))
               //TODO: handle multiple extends
               case b @ ScalaExtends(e) => parents = parser(sourcefile, b).templateParents(false)
+							//TODO: ofCaseClass = true
+							case b @ ScalaParams(e) => params = parser(sourcefile, b).paramClauses(name, List[Tree](), false)
               case _ => throw new Exception("WTF am I doing here ?")
             } 
         }
-        (parents, body toList)
+        (name, params, parents, body toList)
       }
       
       def assign(node: Tree) = Assign(Ident("out"), Apply( Select(Ident("out"), newTermName("$plus")), List(node) ))

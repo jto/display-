@@ -1,9 +1,10 @@
+object f{val l = """
+#{extends: jto.scala.template.Template with jto.scala.template.example.ImplicitConversions}
+#{params: (u: jto.scala.template.example.User = new jto.scala.template.example.User("default user", 0))}
 %{ 
  import jto.scala.template.example.User
  import jto.scala.template.Template 
 }%
-#{extends: jto.scala.template.Template with jto.scala.template.example.ImplicitConversions}
-#{params: u: User}  //TODO
 <!DOCTYPE html>
 <html>
 	<head>
@@ -21,9 +22,13 @@
 		val t  = new Tutu("blop")
 		val t2 = null
 		//=====
-		val users = List(u1, u2, u3, u4, u5)
+		val users = List[Template](u1, u2, u3, u4, u5)
 	}%
 	<body>
+		<div>
+			<h1>Param</h1>
+			<p>${u}</p>
+		</div>
 		<h1>Default</h1>
 		<p>${t}</p>
 		<div>
@@ -40,3 +45,4 @@
 		</div>
 	</body>
 </html>
+"""}

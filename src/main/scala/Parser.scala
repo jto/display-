@@ -10,6 +10,7 @@ case class StaticValueBlock(override val expr: String) extends Expression(expr)
 case class ScalaValueBlock(override val expr: String) extends Expression(expr)
 case class ScalaScriptBlock(override val expr: String) extends Expression(expr)
 case class ScalaExtends(override val expr: String) extends Expression(expr)
+case class ScalaParams(override val expr: String) extends Expression(expr)
 
 // Cf: http://github.com/paulp/scala-lang-combinators/blob/master/src/MyScanners.scala
 import scala.util.parsing.combinator.{ PackratParsers, ImplicitConversions }
@@ -36,10 +37,12 @@ class TemplateScanner extends CharParsers with ImplicitConversions{
     
     lazy val scalaBlock: Parser[Expression]  = BSTART ~> takeUntil(BEND) <~ BEND ^^ (ScalaValueBlock(_))
     lazy val scriptBlock: Parser[Expression] = SSTART ~> takeUntil(SEND) <~ SEND ^^ (ScalaScriptBlock(_))
-    lazy val staticBlock: Parser[Expression] = takeUntilEnd(BSTART | SSTART | ext) ^^ (StaticValueBlock(_))
+    lazy val staticBlock: Parser[Expression] = takeUntilEnd(BSTART | SSTART | ext | params) ^^ (StaticValueBlock(_))
     lazy val ext: Parser[Expression] = "#{extends:" ~> takeUntil("}") <~ "}" ^^ (ScalaExtends(_))
+		lazy val params: Parser[Expression] = "#{params:" ~> takeUntil("}") <~ "}" ^^ (ScalaParams(_))
+		
     
-    def tmpl = positioned(ext | scriptBlock | scalaBlock | staticBlock)+
+    def tmpl = positioned(params | ext | scriptBlock | scalaBlock | staticBlock)+
      
     lazy val anyChar: Parser[Char] = chrExcept(EofCh)
     def chrExcept(cs: Char*): Parser[Char] = elem("chrExcept", ch => (ch != EofCh) && (cs forall (ch !=)))
