@@ -1,6 +1,6 @@
 object f{val l = """
 #{extends: jto.scala.template.Template with jto.scala.template.example.ImplicitConversions}
-#{params: (u: jto.scala.template.example.User = new jto.scala.template.example.User("default user", 0))}
+#{params: u: jto.scala.template.example.User = new jto.scala.template.example.User("default user", 0)}
 %{ 
  import jto.scala.template.example.User
  import jto.scala.template.Template 
@@ -29,8 +29,10 @@ object f{val l = """
 			<h1>Param</h1>
 			<p>${u}</p>
 		</div>
-		<h1>Default</h1>
-		<p>${t}</p>
+		<div
+			<h1>Default</h1>
+			<p>${t}</p>
+		</div>	
 		<div>
 			<h1>Elvis Operator</h1>
 			<p>${t2 ?: "ARRRG"}</p>

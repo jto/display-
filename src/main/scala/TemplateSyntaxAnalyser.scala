@@ -43,7 +43,7 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
 
       def apply(unit: CompilationUnit) {
 				if(isTemplate(unit.source)){
-					println("IT's a template!")
+					reporter.info(NoPosition, "Compiling template " + unit.source, false)
         	unit.body = parse(unit.source.asInstanceOf[BatchSourceFile])
 				}
         //TemplateSyntaxAnalyzer.this.global.treeBrowsers.create().browse(unit.body) 
@@ -57,8 +57,8 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
 
       def createBaseTree(tmplObj: List[Tree]): Tree = {
         val pkg = buildPkg
-				//Workaround, GenICode.scala:1335 uses Position.line
-				object MyNoPos extends Position{override def line = 0}
+				//XXX: workaround, GenICode.scala:1335 uses Position.line
+				object MyNoPos extends Position{ override def line = 0 }
         atPos(MyNoPos) { PackageDef(pkg.asInstanceOf[RefTree], tmplObj) }
       }
 
@@ -99,7 +99,7 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
         val newmods = NoMods
         val name = newTermName("render")
         val tparams = List[TypeDef]()                                   //Template (generics) parameters ex: render[T](toto: T) = ...
-        val vparamss = List(List[ValDef]())                             //method parameters TODO: set real parameters
+        val vparamss = List(List[ValDef]())                             //method parameters
         val restype = TypeTree()                                        //TypeTree, function's return type, will be infered
 
         //Declare an empty mutable String named "out"
@@ -142,6 +142,7 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
               case StaticValueBlock(e) => body += assign(Literal(e))
               //TODO: handle multiple extends
               case b @ ScalaExtends(e) => parents = parser(sourcefile, b).templateParents(false)
+							//TODO: throw error if multiple params tags are found
 							case b @ ScalaParams(e) => params = parser(sourcefile, b).paramClauses(name, List[Tree](), true)
               case _ => throw new Exception("WTF am I doing here ?")
             } 
