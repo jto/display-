@@ -1,15 +1,15 @@
 package jto.scala.compiler.plugins
 
+import java.io._
+
 import scala.tools.nsc._
 import scala.tools.nsc.plugins._
 import scala.tools.nsc.util.{Position, NoPosition, SourceFile, BatchSourceFile}
 import scala.tools.nsc.ast.TreeGen
 import scala.tools.nsc.ast.parser._
-import scala.tools.nsc.symtab.Flags
+import scala.tools.nsc.symtab.{Flags, SymbolTable}
 
 import jto.scala.template.ast._
-
-import java.io._
 
 /**
 * This plugin allow the Scala compiler to build any file as a scala class
@@ -57,32 +57,41 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
 
       def createBaseTree(tmplObj: List[Tree]): Tree = {
         val pkg = buildPkg
-        atPos(NoPosition) { PackageDef(pkg.asInstanceOf[RefTree], tmplObj) }
+				//Workaround, GenICode.scala:1335 uses Position.line
+				object MyNoPos extends Position{override def line = 0}
+        atPos(MyNoPos) { PackageDef(pkg.asInstanceOf[RefTree], tmplObj) }
       }
 
       def buildPkg(): Tree = {
         //TODO: read path and generate pkg name from it
         val names = List[String]("pkg2", "pkg3"); 
-        val name = newTermName("views");
+        makeSelectTree(names)
+      }
+
+			def makeSelectTree(names: List[String]) = {
+				val name = newTermName("views");
         val id: Tree = atPos(NoPosition)(Ident(name))
         (id /: names){ (i, n) =>  Select(i, newTermName(n)) } //Malbolge was too easy
-      }
+			}
+			
+			def makeSelectTree(n: String): Tree = makeSelectTree(n split(".") toList)
       
       def buildObject(className: Name, vparamss: List[List[ValDef]],  parents: (List[Tree], List[List[Tree]]), renderDef: Tree): List[Tree] = {
         //Template(parents: List[Tree], self: ValDef, constrMods: Modifiers, vparamss: List[List[ValDef]], argss: List[List[Tree]], body: List[Tree], superPos: Position)
-        val par = parents._1 //List(gen.scalaScalaObjectConstr.asInstanceOf[RefTree]) // SuperClasses  (Cf TreeGen.scala)
+        val par = parents._1																								 // SuperClasses  (Cf TreeGen.scala)
         val self = emptyValDef                                               // Current class ValDef
         val constrMods = NoMods                                              // Modifiers
-        //val vparamss =  List(List[ValDef]())                                 // Constructor parameters
-        val argss = parents._2 //List(List[Tree]())                          // Parents class constructors params
+        //val vparamss =  List(List[ValDef]())                               // Constructor parameters
+        val argss = parents._2 											                         // Parents class constructors params
         val body = List(renderDef)                                           // List[Tree] of members
         val superPos = NoPosition                                            // Position
 
-        //extends jto.scala.template.Template
-        val t =  atPos(NoPosition) (Template(par, self , constrMods, vparamss, argss, body, superPos))
+        //TODO: extends jto.scala.template.Template
+				val caseParents = par ::: List(gen.productConstr.asInstanceOf[Tree])
+								
+        val t =  atPos(NoPosition) (Template(caseParents, self , constrMods, vparamss, argss, body, superPos))
         //List(ModuleDef(NoMods, newTermName(className), t)) //ModuleDef == object definition
-        //TODO: add "case" modifier
-        List(ClassDef(NoMods, className, List(), t)) // => class definition
+        List(ClassDef(Modifiers(Flags.CASE), className, List(), t)) // => class definition
       }
             
       //Create "render" function definition 
@@ -99,7 +108,7 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
         val outReturn = Ident("out")
         val completeBody: List[Tree] = outDef :: body
         val b = Block(completeBody,  outReturn)
-        
+      
         val rhs = atPos(NoPosition){ b }    //Method BODY
         DefDef(newmods, name, tparams, vparamss, restype, rhs)
       }
@@ -133,8 +142,7 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
               case StaticValueBlock(e) => body += assign(Literal(e))
               //TODO: handle multiple extends
               case b @ ScalaExtends(e) => parents = parser(sourcefile, b).templateParents(false)
-							//TODO: ofCaseClass = true
-							case b @ ScalaParams(e) => params = parser(sourcefile, b).paramClauses(name, List[Tree](), false)
+							case b @ ScalaParams(e) => params = parser(sourcefile, b).paramClauses(name, List[Tree](), true)
               case _ => throw new Exception("WTF am I doing here ?")
             } 
         }
