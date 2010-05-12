@@ -8,7 +8,7 @@ define 'TemplateSyntaxAnalyzer' do
   project.version = '0.1'
   
   #compile.with COMMONS_IO
-  compile.using :deprecation => true#, :other => '-Xplugin:../TreeBrowserPlugin/target/TreeBrowserPlugin-0.1.jar'
+  compile.using :deprecation => true#, :other => '-Xplugin:target/TemplateSyntaxAnalyzer-0.1.jar'
   
   test.with SPEC
   package :jar
@@ -19,7 +19,7 @@ define 'TemplateSyntaxAnalyzer' do
   end
   
   task :buildTemplate => :package do
-    system 'scalac -cp target/classes src/main/views/Test.html.scala -Xplugin target/TemplateSyntaxAnalyzer-0.1.jar' #-Xsource-reader jto.scala.compiler.readers.ScalhackReader'
+    system 'scalac -classpath target/classes -d target/classes -Xplugin:target/TemplateSyntaxAnalyzer-0.1.jar samples/*.scala samples/views/*' #-Xsource-reader jto.scala.compiler.readers.ScalhackReader'
   end
   
   task :scalap => :compile do

@@ -5,28 +5,26 @@
 package jto.scala.template
 
 trait Template extends ElvisConv{
-  
-  type T = Template
-  
+    
   implicit def any2Template(value: Any): DefaultTemplate = new DefaultTemplate(value)
-  implicit def iterable2Template(value: Iterable[T]): IteratorTemplate = new IteratorTemplate(value)
-
-  /***
-  * Default template impl, used by tag in scala block when 
-  * no other conversion is available
-  */
-  class DefaultTemplate(val value: Any) extends Template{
-    override def render() = value.toString
-  }
-
-  /***
-  * Automatic iteration template
-  */
-  class IteratorTemplate(val l: Iterable[T]) extends Template{
-    override def render() = l map(_.render) mkString
-  }
+  implicit def iterable2Template(value: Iterable[Template]): IteratorTemplate = new IteratorTemplate(value)
 
   def render(): String
+}
+
+/***
+* Default template impl, used by tag in scala block when 
+* no other conversion is available
+*/
+class DefaultTemplate(val value: Any) extends Template{
+  override def render() = value.toString
+}
+
+/***
+* Automatic iteration template
+*/
+class IteratorTemplate(val l: Iterable[Template]) extends Template{
+  override def render() = l map(_.render) mkString
 }
 
 /**

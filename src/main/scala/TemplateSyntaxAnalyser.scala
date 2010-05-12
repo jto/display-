@@ -26,6 +26,46 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
     val components = List[PluginComponent](Component)
 
     /**
+    * Generate implicits conversions for Iterables
+    */
+    object ImplicitEnhancer extends Transformer{
+      override def transform(tree: Tree) = {
+        tree match {
+          case temp @ Template(parents, self, body) => {
+            val newBody = body flatMap{
+              _ match {
+                case t @ DefDef(mods, name, tparams, vparamss, tpt, rhs) if mods.hasFlag(Flags.IMPLICIT) => {
+                  //TODO: check that the DefDef returns Template
+                  body ::: List(generateIteratorConversion(t))
+                }
+                case t @ _ => List(t)
+              }
+            }
+            super.transform(Template(parents, self, newBody))
+          }
+          case _ => super.transform(tree)
+        }
+      }
+      
+      //TODO: extract that to generate AST easily
+      def generateIteratorConversion(t: DefDef) = {
+        val classType = t.vparamss.head.head.tpt.toString;
+        val code = "implicit def list" + t.name.toString.capitalize + "(u :Iterable[" + classType + "]): jto.scala.template.IteratorTemplate = new jto.scala.template.IteratorTemplate(u map(" + t.name + "(_)));"
+        val parser = new UnitParser(new CompilationUnit(new BatchSourceFile("Genarated code from TemplateSyntaxAnalyser", code)))
+        val tree = parser.block
+        tree.asInstanceOf[Block].stats.head
+      }
+    }
+  
+    
+    object GlobalEnhancer extends Transformer{
+      val enhancers = List[Transformer](ImplicitEnhancer)
+      //Apply all ehnancers to the given Tree
+      override def transform(tree: Tree) = (tree /: enhancers){ (tree, enhancer) => enhancer.transform(tree) }
+    }
+    
+
+    /**
     * Build an AST from template file
     */
     private object Component extends PluginComponent{
@@ -48,7 +88,9 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
                     reporter.info(NoPosition, "Compiling template " + unit.source, false)
                     unit.body = parse(unit.source.asInstanceOf[BatchSourceFile])
                 }
-                //TemplateSyntaxAnalyzer.this.global.treeBrowsers.create().browse(unit.body) 
+                val transformed = GlobalEnhancer.transform(unit.body)
+                unit.body = transformed
+                //TemplateSyntaxAnalyzer.this.global.treeBrowsers.create().browse(transformed) 
             }
 
             // ==============================
