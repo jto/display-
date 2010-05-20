@@ -25,9 +25,10 @@ trait CharParsers extends PackratParsers {
 
 class TemplateScanner extends CharParsers with ImplicitConversions{
     
+    //TODO: add i18n support with &{'key.key1.key2'}
+    //TODO: add tags with body (iteration etc.)
     val BSTART = "${"
     val BEND   = "}"
-    
     val SSTART = "%{"
     val SEND   = "}%"
     

@@ -12,6 +12,7 @@ import scala.tools.nsc.ast.parser._
 import scala.tools.nsc.symtab.{Flags, SymbolTable}
 
 import jto.scala.template.ast._
+import jto.scala.template.ast.enhancers._
 
 /**
 * This plugin allow the Scala compiler to build any file as a scala class
@@ -161,8 +162,9 @@ class TemplateSyntaxAnalyzer(val global: scala.tools.nsc.Global) extends Plugin 
                 val ContentExtractor = """(?s)object f\{val l = \"\"\"(.*)\"\"\"\}""".r
                 val content = sourcefile.content.mkString
                 val ContentExtractor(realContent) = content
-
-                val (name, params, parents,body) = template2Scala(sourcefile, TemplateParser.parse(realContent))
+                
+                val realSourceFile = new BatchSourceFile(sourcefile.file, realContent)
+                val (name, params, parents,body) = template2Scala(realSourceFile, TemplateParser.parse(realContent))
                 createBaseTree(buildObject(name, params, parents, buildRenderDef(body)))
             }
 
