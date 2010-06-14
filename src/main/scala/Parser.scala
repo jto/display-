@@ -39,8 +39,8 @@ class TemplateScanner extends CharParsers with ImplicitConversions{
     lazy val scalaBlock: Parser[Expression]  = BSTART ~> takeUntil(BEND) <~ BEND ^^ (ScalaValueBlock(_))
     lazy val scriptBlock: Parser[Expression] = SSTART ~> takeUntil(SEND) <~ SEND ^^ (ScalaScriptBlock(_))
     lazy val staticBlock: Parser[Expression] = takeUntilEnd(BSTART | SSTART | ext | params) ^^ (StaticValueBlock(_))
-    lazy val ext: Parser[Expression] = "#{extends:" ~> takeUntil("}") <~ "}" ^^ (ScalaExtends(_))
-	  lazy val params: Parser[Expression] = "#{params:" ~> takeUntil("}") <~ "}" ^^ { x: String => ScalaParams("(" + x + ")") }
+    lazy val ext: Parser[Expression] = "#{extends" ~> takeUntil("}") <~ "}" ^^ (ScalaExtends(_))
+	  lazy val params: Parser[Expression] = "#{params" ~> takeUntil("}") <~ "}" ^^ { x: String => ScalaParams("(" + x + ")") }
 		
     def tmpl = positioned(params | ext | scriptBlock | scalaBlock | staticBlock)+
      

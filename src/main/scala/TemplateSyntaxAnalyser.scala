@@ -12,7 +12,6 @@ import scala.tools.nsc.ast.parser._
 import scala.tools.nsc.symtab.{Flags, SymbolTable}
 
 import jto.scala.template.ast._
-import jto.scala.template.ast.enhancers._
 
 /**
 * This plugin allow the Scala compiler to build any file as a scala class
