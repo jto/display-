@@ -5,7 +5,9 @@
 package jto.scala.template
 
 trait Template extends ElvisConv{
-    
+  
+  val body: Unit => Template = Unit => { new DefaultTemplate("") }
+  
   implicit def any2Template(value: Any): DefaultTemplate = new DefaultTemplate(value)
   implicit def iterable2Template(value: Iterable[Template]): IteratorTemplate = new IteratorTemplate(value)
 
